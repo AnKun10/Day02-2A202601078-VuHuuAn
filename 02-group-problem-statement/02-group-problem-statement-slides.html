@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ticket Triage — Day 02 Slides</title>
+<style>
+  :root{
+    --paper:#F3F6F5;
+    --ink:#152420;
+    --muted:#54655F;
+    --accent:#0B6B63;
+    --accent-ink:#08514B;
+    --accent-soft:#DCEBE7;
+    --alert:#B23A22;
+    --alert-soft:#F6E3DC;
+    --line:#C9D6D1;
+    --card:#FFFFFF;
+    --mono:Consolas,"Cascadia Mono","Courier New",ui-monospace,monospace;
+    --sans:"Segoe UI","SF Pro Text",-apple-system,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);overflow:hidden}
+
+  #deck{position:fixed;inset:0;background:var(--paper)}
+  #stage{position:absolute;left:50%;top:50%;width:1280px;height:720px;
+    transform:translate(-50%,-50%) scale(var(--s,1));transform-origin:center}
+
+  .slide{position:absolute;inset:0;padding:60px 72px 88px;display:none;
+    flex-direction:column;background:var(--paper)}
+  .slide.on{display:flex}
+  @media (prefers-reduced-motion:no-preference){
+    .slide.on{animation:fadein .28s ease-out}
+    @keyframes fadein{from{opacity:0}to{opacity:1}}
+  }
+
+  .eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--accent-ink);margin-bottom:14px}
+  h1{font-size:56px;line-height:1.08;font-weight:700;letter-spacing:-.015em;
+    text-wrap:balance;max-width:20ch}
+  h2{font-size:40px;line-height:1.12;font-weight:700;letter-spacing:-.012em;
+    text-wrap:balance;margin-bottom:26px}
+  .lede{font-size:20px;line-height:1.5;color:var(--muted);max-width:56ch;margin-top:18px}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+  .foot{position:absolute;left:72px;right:72px;bottom:34px;display:flex;
+    justify-content:space-between;align-items:baseline;font-family:var(--mono);
+    font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
+  .chip{display:inline-block;font-family:var(--mono);font-size:12px;letter-spacing:.06em;
+    padding:4px 10px;border-radius:3px;background:var(--accent-soft);color:var(--accent-ink)}
+  .chip.alert{background:var(--alert-soft);color:var(--alert)}
+  .chip.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+
+  /* ---- slide 1 ---- */
+  .s1-grid{display:flex;gap:56px;align-items:center;flex:1;min-height:0}
+  .s1-left{flex:1.25}
+  .ticket{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;
+    box-shadow:0 14px 34px rgba(21,36,32,.10);overflow:hidden;max-width:420px}
+  .ticket-head{background:var(--ink);color:#EAF1EE;padding:14px 20px;display:flex;
+    justify-content:space-between;font-family:var(--mono);font-size:13px}
+  .ticket-body{padding:18px 20px;display:grid;gap:12px}
+  .tfield{display:flex;justify-content:space-between;align-items:center;
+    border-bottom:1px dashed var(--line);padding-bottom:10px;font-size:15px}
+  .tfield:last-child{border-bottom:none;padding-bottom:0}
+  .tfield .k{color:var(--muted);font-size:13px}
+  .tfield .v{font-family:var(--mono);font-size:14px}
+  .v.blank{color:var(--alert)}
+  .v.fill{color:var(--accent-ink);background:var(--accent-soft);padding:2px 8px;border-radius:3px}
+  .team{display:flex;flex-wrap:wrap;gap:10px 22px;margin-top:34px;
+    font-family:var(--mono);font-size:13px;color:var(--muted)}
+  .team b{color:var(--ink);font-weight:600}
+  .hint{margin-top:26px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .ctx{margin-top:14px;font-size:14.5px;line-height:1.5;color:var(--muted);max-width:56ch}
+
+  /* ---- workflow chains ---- */
+  .chain{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin:10px 0 26px}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:5px;
+    padding:12px 13px;font-size:13.5px;line-height:1.35;flex:1 1 130px;max-width:172px;
+    display:flex;flex-direction:column;gap:5px}
+  .step .n{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .step .t{font-weight:600;font-size:14px}
+  .step .d{color:var(--muted);font-size:12.5px}
+  .step.bad{border-color:var(--alert);border-width:2px}
+  .step.bad .n{color:var(--alert)}
+  .step.worst{background:var(--alert-soft);border:2px solid var(--alert)}
+  .step.worst .t,.step.worst .d{color:var(--alert)}
+  .step.ai{background:var(--accent-soft);border:1.5px solid var(--accent)}
+  .step.ai .n{color:var(--accent-ink)}
+  .step.human{border:2px solid var(--ink)}
+  .arr{align-self:center;color:var(--muted);font-size:17px}
+  .callout{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--alert);
+    border-radius:4px;padding:16px 20px;font-size:16.5px;line-height:1.5;max-width:100ch}
+  .callout b{color:var(--alert)}
+  .callout.good{border-left-color:var(--accent)}
+  .callout.good b{color:var(--accent-ink)}
+  .legend{margin-top:18px;display:flex;gap:18px;font-size:12.5px;color:var(--muted);
+    font-family:var(--mono)}
+
+  /* ---- evidence (slide 5) ---- */
+  .stats{display:flex;gap:16px;margin:6px 0 28px}
+  .stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:22px 20px}
+  .stat .big{font-family:var(--mono);font-size:46px;font-weight:700;line-height:1;
+    font-variant-numeric:tabular-nums;color:var(--accent-ink)}
+  .stat .lbl{font-size:14px;color:var(--muted);margin-top:10px;line-height:1.4}
+  .quotes{display:grid;gap:12px;margin-bottom:24px}
+  .q{border-left:3px solid var(--accent);padding:4px 0 4px 16px;font-size:17px;line-height:1.45}
+  .q i{color:var(--muted);font-size:14px;font-style:normal;display:block;margin-top:3px}
+
+  /* ---- research (slide 6) ---- */
+  .tools{display:flex;gap:16px;margin-bottom:26px}
+  .tool{flex:1;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:20px}
+  .tool .tn{font-weight:700;font-size:17px;margin-bottom:8px}
+  .tool .td{font-size:14.5px;line-height:1.45;color:var(--muted)}
+  .band{background:var(--ink);color:#EAF1EE;border-radius:6px;padding:20px 26px;
+    font-size:19px;line-height:1.5}
+  .band b{color:#8FD6C9}
+
+  /* ---- PS cards (slide 8) ---- */
+  .ps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;flex:1;min-height:0;align-content:start}
+  .pcard{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px 18px}
+  .pcard .pk{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--accent-ink);margin-bottom:8px}
+  .pcard .pv{font-size:14.5px;line-height:1.45}
+  .pcard.hot{border-color:var(--alert)}
+  .pcard.hot .pk{color:var(--alert)}
+
+  /* ---- R/W/A (slide 9) ---- */
+  .rwa{display:flex;gap:16px;flex:1;min-height:0;align-items:stretch}
+  .lvl{flex:1;background:var(--card);border:1px solid var(--line);border-radius:6px;
+    padding:22px 20px;display:flex;flex-direction:column;gap:10px}
+  .lvl.pick{border:2px solid var(--accent);box-shadow:0 10px 26px rgba(11,107,99,.14)}
+  .lvl .ln{font-size:22px;font-weight:700;display:flex;align-items:center;gap:10px}
+  .lvl .ld{font-size:14.5px;line-height:1.45;color:var(--muted)}
+  .lvl .verdict{margin-top:auto;font-size:14px;font-weight:600;border-top:1px dashed var(--line);
+    padding-top:10px}
+  .lvl.pick .verdict{color:var(--accent-ink)}
+
+  /* ---- decision (slide 10) ---- */
+  .go{display:flex;align-items:baseline;gap:18px;margin-bottom:10px}
+  .go h2{margin-bottom:0;font-size:52px}
+  .d-grid{display:flex;gap:18px;margin-top:24px;flex:1;min-height:0}
+  .pilot{flex:1.2;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:20px 22px}
+  .pilot ol{margin:10px 0 0 20px;display:grid;gap:9px;font-size:15px;line-height:1.45}
+  .exit{flex:1;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--alert);
+    border-radius:6px;padding:20px 22px}
+  .exit ul{margin:10px 0 0 18px;display:grid;gap:9px;font-size:15px;line-height:1.45}
+  .boxlbl{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .closing{margin-top:20px;font-size:18px;color:var(--accent-ink);font-weight:600}
+
+  /* ---- deck chrome ---- */
+  #bar{position:fixed;left:0;top:0;height:4px;background:var(--accent);width:0;z-index:9}
+  #ctr{position:fixed;right:18px;bottom:14px;font-family:var(--mono);font-size:12px;
+    color:var(--muted);z-index:9;font-variant-numeric:tabular-nums}
+  #fsbtn{position:fixed;left:18px;bottom:10px;z-index:9;font-family:var(--mono);
+    font-size:12px;color:var(--muted);background:transparent;border:1px solid var(--line);
+    border-radius:4px;padding:5px 10px;cursor:pointer}
+  #fsbtn:hover{color:var(--accent-ink);border-color:var(--accent)}
+  #fsbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .zone{position:fixed;top:0;bottom:0;width:22%;z-index:5;cursor:pointer;background:transparent;border:0}
+  #zprev{left:0}#znext{right:0}
+  .zone:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+
+  @media print{
+    body{overflow:visible}
+    #deck{position:static}
+    #stage{position:static;transform:none;width:1280px;height:auto;left:auto;top:auto}
+    .slide{display:flex;position:relative;width:1280px;height:720px;page-break-after:always}
+    #bar,#ctr,#fsbtn,.zone{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div id="deck"><div id="stage">
+
+  <!-- 1 · TITLE -->
+  <section class="slide on">
+    <div class="eyebrow">Day 02 Lab — Tìm đúng bài toán cho AI</div>
+    <div class="s1-grid">
+      <div class="s1-left">
+        <h1>Đưa ticket đến đúng team ngay từ lần đầu.</h1>
+        <p class="lede">AI hỗ trợ bước <b>triage</b> của IT Help Desk: đọc mô tả tự do,
+          phân loại, định tuyến — con người quyết những ca AI không chắc.</p>
+        <p class="ctx">Bài toán được nhóm chọn từ 15 candidates của 5 thành viên,
+          sau vòng cluster và chấm điểm 7 tiêu chí (chi tiết trong group report).</p>
+        <div class="team">
+          <span><b>Vũ Hữu An</b> 2A202601078</span>
+          <span><b>Nguyễn Trần Nghĩa</b> 2A202601664</span>
+          <span><b>Lê Đình Việt</b> 2A202601528</span>
+          <span><b>Tô Ngọc Hải</b> 2A202601686</span>
+          <span><b>Lê Thanh Phương</b> 2A202501658</span>
+        </div>
+        <div class="hint">← → chuyển slide · F hoặc nút ⛶ để fullscreen · click hai mép màn hình cũng chuyển được</div>
+      </div>
+      <div class="ticket">
+        <div class="ticket-head"><span>#INC-2013-4711</span><span>VINST · Service Desk</span></div>
+        <div class="ticket-body">
+          <div class="tfield"><span class="k">Mô tả của user</span>
+            <span class="v">“mạng chậm, app treo…”</span></div>
+          <div class="tfield"><span class="k">Category</span><span class="v blank">— chưa có —</span></div>
+          <div class="tfield"><span class="k">Priority</span><span class="v blank">— chưa có —</span></div>
+          <div class="tfield"><span class="k">Team phụ trách</span>
+            <span class="v fill">AI đề xuất trong vài giây</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>02 — Group Problem Statement</span><span>IT Help Desk Ticket Triage</span></div>
+  </section>
+
+  <!-- 2 · CURRENT STATE -->
+  <section class="slide">
+    <div class="eyebrow">Hiện trạng — 7 bước, thời gian (*) là giả định sẽ đo trong pilot</div>
+    <h2>Triage thủ công — và trò “ping-pong” tốn hàng giờ đến ngày</h2>
+    <div class="chain">
+      <div class="step"><span class="n">1</span><span class="t">User gửi ticket</span><span class="d">mô tả tự do, chất lượng không đều</span></div>
+      <div class="arr">→</div>
+      <div class="step"><span class="n">2</span><span class="t">L1 đọc + hỏi lại</span><span class="d">chờ user: phút → giờ (*)</span></div>
+      <div class="arr">→</div>
+      <div class="step bad"><span class="n">3 · BOTTLENECK</span><span class="t">L1 phân loại</span><span class="d">2-5’/ticket (*), theo kinh nghiệm từng người</span></div>
+      <div class="arr">→</div>
+      <div class="step bad"><span class="n">4 · BOTTLENECK</span><span class="t">L1 định tuyến</span><span class="d">sai ở đây là gốc mọi chi phí sau</span></div>
+      <div class="arr">→</div>
+      <div class="step worst"><span class="n">5 · PING-PONG</span><span class="t">Sai team → reassign</span><span class="d">mỗi lần đẩy: +giờ → ngày chờ (*)</span></div>
+      <div class="arr">→</div>
+      <div class="step"><span class="n">6</span><span class="t">Team xử lý</span><span class="d">ngoài scope bài này</span></div>
+      <div class="arr">→</div>
+      <div class="step"><span class="n">7</span><span class="t">Đóng ticket</span><span class="d">phản hồi user</span></div>
+    </div>
+    <div class="callout">Chi phí thật <b>không nằm ở vài phút phân loại</b> — nằm ở hậu quả khi định tuyến sai:
+      mỗi lần chuyển team là một hàng đợi mới. User chờ thêm, SLA vỡ, L1 làm việc lặp lại.</div>
+    <div class="foot"><span>02 — Group Problem Statement</span><span>Hiện trạng</span></div>
+  </section>
+
+  <!-- 3 · EVIDENCE -->
+  <section class="slide">
+    <div class="eyebrow">Bằng chứng — BPI Challenge 2013 · Volvo IT (hệ thống VINST)</div>
+    <h2>Bottleneck này được ngành công nhận, không phải cảm giác</h2>
+    <div class="stats">
+      <div class="stat"><div class="big">7.554</div><div class="lbl">incidents trong event log thật của Volvo IT</div></div>
+      <div class="stat"><div class="big">65.533</div><div class="lbl">events ghi lại toàn bộ vòng đời xử lý</div></div>
+      <div class="stat"><div class="big">2</div><div class="lbl">câu hỏi chính thức của challenge trúng thẳng bottleneck nhóm chọn</div></div>
+    </div>
+    <div class="quotes">
+      <div class="q">“Ticket bị đẩy qua lại giữa các team (ping-pong) có phổ biến không?”
+        <i>— câu hỏi phân tích chính thức do Volvo IT đặt ra cho BPI 2013</i></div>
+      <div class="q">“Incident có được giữ lại xử lý trong tuyến hỗ trợ 1 (L1) không?”
+        <i>— giữ được ở L1 càng nhiều, chi phí càng thấp, user được xử lý càng nhanh</i></div>
+    </div>
+    <span class="chip alert">Giới hạn: nhóm chưa kịp khảo sát người thật trong thời gian lab — bộ câu hỏi interview đã sẵn trong report</span>
+    <div class="foot"><span>02 — Group Problem Statement</span><span>Bằng chứng</span></div>
+  </section>
+
+  <!-- 4 · RESEARCH -->
+  <section class="slide">
+    <div class="eyebrow">Research — sản phẩm đã có trên thị trường</div>
+    <h2>Thị trường đã hội tụ về đúng một pattern</h2>
+    <div class="tools">
+      <div class="tool"><div class="tn">Zendesk Intelligent Triage</div>
+        <div class="td">Phân loại topic, sentiment, entity thành <b>field trên ticket</b> ngay khi tạo — workflow/routing dùng tiếp các field này.</div></div>
+      <div class="tool"><div class="tn">ServiceNow Predictive Intelligence</div>
+        <div class="td">ML học từ <b>ticket lịch sử</b> của chính tổ chức để đoán category, priority, assignment group.</div></div>
+      <div class="tool"><div class="tn">Freshservice Field Suggester</div>
+        <div class="td">AI <b>gợi ý</b> giá trị field cho ticket mới — agent là người xác nhận cuối cùng.</div></div>
+    </div>
+    <div class="band"><b>AI đề xuất — con người quyết ca không chắc.</b> Không tool nào để AI tự đóng ticket.
+      Nhóm không cần phát minh kiến trúc mới, chỉ cần làm đúng pattern này và đo được.</div>
+    <div class="foot"><span>02 — Group Problem Statement</span><span>Research</span></div>
+  </section>
+
+  <!-- 5 · FUTURE STATE -->
+  <section class="slide">
+    <div class="eyebrow">Future workflow — AI ở một bước, người giữ quyền quyết</div>
+    <h2>Classify → ngưỡng tin cậy → route hoặc đưa người review</h2>
+    <div class="chain">
+      <div class="step"><span class="n">1</span><span class="t">Ticket mới</span><span class="d">mô tả tự do như cũ</span></div>
+      <div class="arr">→</div>
+      <div class="step ai"><span class="n">2 · AI</span><span class="t">Trích xuất + phân loại</span><span class="d">category, priority, team đề xuất + confidence — vài giây</span></div>
+      <div class="arr">→</div>
+      <div class="step ai"><span class="n">3a · CONF ≥ NGƯỠNG</span><span class="t">Auto-route</span><span class="d">vào thẳng hàng đợi team</span></div>
+      <div class="arr">→</div>
+      <div class="step human"><span class="n">3b · CONF &lt; NGƯỠNG</span><span class="t">L1 review</span><span class="d">1-2’/ticket — human boundary</span></div>
+      <div class="arr">→</div>
+      <div class="step human"><span class="n">4</span><span class="t">Audit mẫu định kỳ</span><span class="d">L1 kiểm ngẫu nhiên ticket auto-route</span></div>
+      <div class="arr">→</div>
+      <div class="step"><span class="n">5</span><span class="t">Feedback</span><span class="d">route sai → chỉnh ngưỡng/model</span></div>
+    </div>
+    <div class="callout good"><b>Boundary:</b> AI không tự giải quyết ticket, không tự trả lời user.
+      Ticket nhạy cảm (security, VIP, pháp lý) luôn qua người.
+      <b>Fallback:</b> accuracy tụt → hạ ngưỡng auto-route → tắt hẳn, quay về triage thủ công như cũ.</div>
+    <div class="legend"><span>■ xanh = bước AI</span><span>■ viền đậm = con người</span><span>không có bước nào AI tự quyết đến user</span></div>
+    <div class="foot"><span>02 — Group Problem Statement</span><span>Future workflow</span></div>
+  </section>
+
+  <!-- 6 · PROBLEM STATEMENT v1 -->
+  <section class="slide">
+    <div class="eyebrow">Problem Statement v1</div>
+    <h2>Một câu: giảm ticket đi lạc, đo được từ log</h2>
+    <div class="ps">
+      <div class="pcard"><div class="pk">Actor</div>
+        <div class="pv">Nhân viên L1/dispatcher tại service desk của tổ chức lớn.</div></div>
+      <div class="pcard hot"><div class="pk">Bottleneck</div>
+        <div class="pv">Triage thủ công theo kinh nghiệm; định tuyến sai gây ping-pong — mỗi lần đẩy cộng thêm giờ → ngày chờ.</div></div>
+      <div class="pcard"><div class="pk">Success metric</div>
+        <div class="pv">% đúng team ngay lần đầu <b>tăng</b> · % reassign <b>giảm</b> · triage 2-5’ → vài giây (auto) hoặc 1-2’ (review). Baseline: đo trên BPI 2013.</div></div>
+      <div class="pcard"><div class="pk">Boundary</div>
+        <div class="pv">Chỉ phân loại + định tuyến. Không tự resolve, không tự trả lời user; ticket nhạy cảm luôn qua người.</div></div>
+      <div class="pcard"><div class="pk">Điểm chèn AI</div>
+        <div class="pv">Ngay sau khi ticket được tạo — trước khi vào hàng đợi của bất kỳ team nào.</div></div>
+      <div class="pcard"><div class="pk">Rủi ro &amp; người kiểm</div>
+        <div class="pv">Phân loại sai, model drift, L1 ỷ lại → ngưỡng confidence + L1 review ca không chắc + audit mẫu định kỳ.</div></div>
+    </div>
+    <div class="foot"><span>02 — Group Problem Statement</span><span>Problem Statement v1</span></div>
+  </section>
+
+  <!-- 7 · RULE / WORKFLOW / AGENT -->
+  <section class="slide">
+    <div class="eyebrow">Độ phù hợp với AI — mơ hồ thấp × phức tạp trung bình</div>
+    <h2>Rule / Workflow / Agent — nhóm chọn mức giữa</h2>
+    <div class="rwa">
+      <div class="lvl">
+        <div class="ln">Rule</div>
+        <div class="ld">Routing theo keyword + form bắt buộc khi tạo ticket. Đủ cho ticket mẫu rõ, lặp lại (reset mật khẩu, cấp quyền).</div>
+        <div class="ld">Vỡ với mô tả tự do đa dạng; user chọn sai category; rule set phình to khó bảo trì.</div>
+        <div class="verdict">Giữ lại — cho subset ticket mẫu rõ</div>
+      </div>
+      <div class="lvl pick">
+        <div class="ln">Workflow <span class="chip">NHÓM CHỌN</span></div>
+        <div class="ld">AI phân loại + đề xuất team kèm confidence. Trên ngưỡng: auto-route. Dưới ngưỡng: người review.</div>
+        <div class="ld">Output là <b>nhãn cố định có ground truth trong log</b> — đo được bằng số, không phải tin vào cảm giác. Đúng pattern cả Zendesk, ServiceNow, Freshservice đang dùng.</div>
+        <div class="verdict">Chọn — đo được, có điểm chèn người rõ ràng</div>
+      </div>
+      <div class="lvl">
+        <div class="ln">Agent</div>
+        <div class="ld">Tự hỏi lại user khi thiếu thông tin, tra knowledge base, tự resolve ticket đơn giản.</div>
+        <div class="ld">Dataset không có KB article và hội thoại (nghi ngại Nghĩa nêu); rủi ro trả lời sai trực tiếp đến user.</div>
+        <div class="verdict">Chưa chọn — nâng cấp sau nếu metric chứng minh</div>
+      </div>
+    </div>
+    <div class="foot"><span>02 — Group Problem Statement</span><span>Rule / Workflow / Agent</span></div>
+  </section>
+
+  <!-- 8 · DECISION -->
+  <section class="slide">
+    <div class="eyebrow">Final decision</div>
+    <div class="go"><h2>Go — với scope nhỏ.</h2>
+      <span class="chip ghost">“Go” = go làm pilot đo lường · không phải go deploy</span></div>
+    <p class="lede" style="margin-top:2px">Pilot chính là cách trả lời hai câu “Not Yet”:
+      baseline chưa đo và độ đầy đủ của dữ liệu.</p>
+    <div class="d-grid">
+      <div class="pilot">
+        <span class="boxlbl">Pilot nhỏ nhất — trên dataset công khai</span>
+        <ol>
+          <li>Kiểm tra BPI 2013 có đủ text mô tả không — nếu thiếu, chuyển sang bug report dataset (Bugzilla) làm proxy.</li>
+          <li>Lấy subset vài trăm ticket có ground truth (team đã thực sự xử lý).</li>
+          <li>AI phân loại category + đề xuất team, xuất kèm confidence.</li>
+          <li>Đo first-assignment accuracy · chọn ngưỡng auto-route · ước lượng % ping-pong tránh được.</li>
+        </ol>
+      </div>
+      <div class="exit">
+        <span class="boxlbl">Exit / rollback</span>
+        <ul>
+          <li>Accuracy thua mức người thật làm được (ước từ chính log) → hạ về <b>Rule + form nhập có cấu trúc</b>, không dùng AI classify.</li>
+          <li>Text ticket quá nghèo (cả ở dataset thay thế) → <b>No-Go cho AI</b> ở bước này; đề xuất sửa form nhập ticket trước.</li>
+        </ul>
+        <p class="closing">Không cần AI vẫn là một kết luận tốt.</p>
+      </div>
+    </div>
+    <div class="foot"><span>02 — Group Problem Statement</span><span>An · Nghĩa · Việt · Hải · Phương — cảm ơn &amp; Q&amp;A</span></div>
+  </section>
+
+</div></div>
+
+<button class="zone" id="zprev" aria-label="Slide trước"></button>
+<button class="zone" id="znext" aria-label="Slide sau"></button>
+<div id="ctr">1 / 8</div>
+<button id="fsbtn" aria-label="Bật/tắt toàn màn hình">⛶ Fullscreen · F</button>
+
+<script>
+(function(){
+  var slides=[].slice.call(document.querySelectorAll('.slide'));
+  var bar=document.getElementById('bar'),ctr=document.getElementById('ctr');
+  var i=0;
+  var h=parseInt((location.hash||'').replace('#',''),10);
+  if(h>=1&&h<=slides.length)i=h-1;
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach(function(s,k){s.classList.toggle('on',k===i);});
+    bar.style.width=((i+1)/slides.length*100)+'%';
+    ctr.textContent=(i+1)+' / '+slides.length;
+    if(history.replaceState)history.replaceState(null,'','#'+(i+1));
+  }
+  function fit(){
+    var s=Math.min(innerWidth/1280,innerHeight/720);
+    document.getElementById('stage').style.setProperty('--s',s);
+  }
+  addEventListener('resize',fit);fit();show(i);
+  addEventListener('hashchange',function(){
+    var n=parseInt((location.hash||'').replace('#',''),10);
+    if(n>=1&&n<=slides.length&&n-1!==i)show(n-1);
+  });
+  function toggleFs(){
+    try{
+      if(document.fullscreenElement){document.exitFullscreen();}
+      else if(document.documentElement.requestFullscreen){
+        document.documentElement.requestFullscreen().catch(function(){});
+      }
+    }catch(err){}
+  }
+  addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight'||e.key==='ArrowDown'||e.key===' '||e.key==='PageDown'){e.preventDefault();show(i+1);}
+    else if(e.key==='ArrowLeft'||e.key==='ArrowUp'||e.key==='PageUp'){e.preventDefault();show(i-1);}
+    else if(e.key==='Home'){show(0);}
+    else if(e.key==='End'){show(slides.length-1);}
+    else if(e.key==='f'||e.key==='F'){toggleFs();}
+  });
+  document.getElementById('fsbtn').addEventListener('click',toggleFs);
+  document.addEventListener('fullscreenchange',fit);
+  document.getElementById('zprev').addEventListener('click',function(){show(i-1);});
+  document.getElementById('znext').addEventListener('click',function(){show(i+1);});
+  var tx=null;
+  addEventListener('touchstart',function(e){tx=e.touches[0].clientX;},{passive:true});
+  addEventListener('touchend',function(e){
+    if(tx===null)return;
+    var dx=e.changedTouches[0].clientX-tx;
+    if(Math.abs(dx)>50)show(i+(dx<0?1:-1));
+    tx=null;
+  },{passive:true});
+})();
+</script>
+</body>
+</html>
